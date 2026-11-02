@@ -11,11 +11,11 @@ permissions:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get latest DokuWiki release
         id: latest
@@ -25,7 +25,7 @@ jobs:
             https://api.github.com/repos/dokuwiki/dokuwiki/releases/latest)
 
           TAG=$(echo "$RELEASE" | jq -r '.tag_name')
-          # tag format: release-YYYY-MM-DDx  →  strip the "release-" prefix
+          # tag format: release-YYYY-MM-DDx  ->  strip the "release-" prefix
           VERSION="${TAG#release-}"
 
           # Find the .tgz asset and its sha256 digest
@@ -36,9 +36,9 @@ jobs:
             | ltrimstr("sha256:")
           ')
 
-          echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"        >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "sha256=$SHA256"  >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256"   >> "$GITHUB_OUTPUT"
 
       - name: Read current version from Dockerfile
         id: current
@@ -49,7 +49,7 @@ jobs:
       - name: Skip if already up to date
         if: steps.latest.outputs.version == steps.current.outputs.version
         run: |
-          echo "Already on DokuWiki ${{ steps.current.outputs.version }} — nothing to do."
+          echo "Already on DokuWiki ${{ steps.current.outputs.version }} -- nothing to do."
 
       - name: Update Dockerfile
         if: steps.latest.outputs.version != steps.current.outputs.version
@@ -57,15 +57,15 @@ jobs:
           NEW_VER="${{ steps.latest.outputs.version }}"
           NEW_SHA="${{ steps.latest.outputs.sha256 }}"
 
-          sed -i "s|^ARG DOKUWIKI_VERSION=.*|ARG DOKUWIKI_VERSION=${NEW_VER}|" dokuwiki/Dockerfile
-          sed -i "s|^ARG DOKUWIKI_SHA256=.*|ARG DOKUWIKI_SHA256=${NEW_SHA}|"   dokuwiki/Dockerfile
+          sed -i "s|^ARG DOKUWIKI_VERSION=.*|ARG DOKUWIKI_VERSION=${NEW_VER}|" dokuwiki/Dockerfile
+          sed -i "s|^ARG DOKUWIKI_SHA256=.*|ARG DOKUWIKI_SHA256=${NEW_SHA}|"   dokuwiki/Dockerfile
 
       - name: Bump addon version in config.yaml
         if: steps.latest.outputs.version != steps.current.outputs.version
         run: |
           # Addon version = DokuWiki version (keeps them in sync and triggers HA update)
           NEW_VER="${{ steps.latest.outputs.version }}"
-          sed -i "s|^version:.*|version: \"${NEW_VER}\"|" dokuwiki/config.yaml
+          sed -i "s|^version:.*|version: \"${NEW_VER}\"|" dokuwiki/config.yaml
 
       - name: Commit and push
         if: steps.latest.outputs.version != steps.current.outputs.version
