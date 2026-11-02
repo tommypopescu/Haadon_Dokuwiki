@@ -1,0 +1,77 @@
+name: Auto-update DokuWiki
+
+on:
+  schedule:
+    # Runs every day at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}   # allow manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get latest DokuWiki release
+        id: latest
+        run: |
+          RELEASE=$(curl -sSf \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/dokuwiki/dokuwiki/releases/latest)
+
+          TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+          # tag format: release-YYYY-MM-DDx  →  strip the "release-" prefix
+          VERSION="${TAG#release-}"
+
+          # Find the .tgz asset and its sha256 digest
+          SHA256=$(echo "$RELEASE" | jq -r '
+            .assets[]
+            | select(.name | endswith(".tgz"))
+            | .digest
+            | ltrimstr("sha256:")
+          ')
+
+          echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256"  >> "$GITHUB_OUTPUT"
+
+      - name: Read current version from Dockerfile
+        id: current
+        run: |
+          CURRENT=$(grep -oP '(?<=DOKUWIKI_VERSION=)\S+' dokuwiki/Dockerfile)
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already up to date
+        if: steps.latest.outputs.version == steps.current.outputs.version
+        run: |
+          echo "Already on DokuWiki ${{ steps.current.outputs.version }} — nothing to do."
+
+      - name: Update Dockerfile
+        if: steps.latest.outputs.version != steps.current.outputs.version
+        run: |
+          NEW_VER="${{ steps.latest.outputs.version }}"
+          NEW_SHA="${{ steps.latest.outputs.sha256 }}"
+
+          sed -i "s|^ARG DOKUWIKI_VERSION=.*|ARG DOKUWIKI_VERSION=${NEW_VER}|" dokuwiki/Dockerfile
+          sed -i "s|^ARG DOKUWIKI_SHA256=.*|ARG DOKUWIKI_SHA256=${NEW_SHA}|"   dokuwiki/Dockerfile
+
+      - name: Bump addon version in config.yaml
+        if: steps.latest.outputs.version != steps.current.outputs.version
+        run: |
+          # Addon version = DokuWiki version (keeps them in sync and triggers HA update)
+          NEW_VER="${{ steps.latest.outputs.version }}"
+          sed -i "s|^version:.*|version: \"${NEW_VER}\"|" dokuwiki/config.yaml
+
+      - name: Commit and push
+        if: steps.latest.outputs.version != steps.current.outputs.version
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dokuwiki/Dockerfile dokuwiki/config.yaml
+          git commit -m "chore: update DokuWiki to ${{ steps.latest.outputs.version }}"
+          git push
