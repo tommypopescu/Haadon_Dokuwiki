@@ -27,3 +27,4 @@ All wiki data is stored under `/share/dokuwiki/` and survives add-on reinstalls 
 
 A GitHub Action checks for new DokuWiki releases daily and automatically updates `Dockerfile` and `config.yaml`.
 With **Auto update** enabled in HA, new versions are applied automatically.
+
