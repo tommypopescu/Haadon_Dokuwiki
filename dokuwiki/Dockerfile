@@ -18,7 +18,8 @@ RUN apk add --no-cache \
     php83-pdo \
     php83-pdo_sqlite \
     php83-sqlite3 \
-    wget
+    wget \
+    git
 
 # DokuWiki version — run.sh syncs bundled plugins, default template and default config
 # to this version on every start so they stay consistent with the core.
