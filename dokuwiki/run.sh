@@ -17,6 +17,9 @@ mkdir -p /share/dokuwiki/conf
 mkdir -p /share/dokuwiki/tpl
 mkdir -p /share/dokuwiki/plugins
 
+# Home directory for nobody — needed so git can write .gitconfig
+mkdir -p /share/dokuwiki/nobody-home
+
 # On every start, sync bundled plugins, default template and default config to the
 # version shipped with this image. Files living under /share are permanent; if they
 # come from a different version than the core (after an add-on update or an in-wiki
@@ -72,9 +75,10 @@ fi
 chown -R nobody:nobody /share/dokuwiki
 
 # Allow git operations on /share/dokuwiki/data as nobody (gitbacked plugin).
-# Without this git refuses to operate on directories owned by a different user.
+# nobody has no writable home by default (/), so we point HOME to a persistent
+# directory it owns before running git config --global.
 su -s /bin/sh nobody -c \
-    "git config --global --add safe.directory /share/dokuwiki/data" || true
+    "HOME=/share/dokuwiki/nobody-home git config --global --add safe.directory /share/dokuwiki/data" || true
 
 # Symlinks to persistent data
 rm -rf /var/www/dokuwiki/data
@@ -91,6 +95,8 @@ ln -sf /share/dokuwiki/plugins /var/www/dokuwiki/lib/plugins
 mkdir -p /run/nginx
 
 # Start PHP-FPM
+# Set HOME for nobody so PHP-FPM child processes (gitbacked) can write .gitconfig
+export HOME=/share/dokuwiki/nobody-home
 php-fpm83 -D
 
 # Start nginx
