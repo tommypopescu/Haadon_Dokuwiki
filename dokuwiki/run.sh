@@ -71,6 +71,11 @@ fi
 # Set permissions
 chown -R nobody:nobody /share/dokuwiki
 
+# Allow git operations on /share/dokuwiki/data as nobody (gitbacked plugin).
+# Without this git refuses to operate on directories owned by a different user.
+su -s /bin/sh nobody -c \
+    "git config --global --add safe.directory /share/dokuwiki/data" || true
+
 # Symlinks to persistent data
 rm -rf /var/www/dokuwiki/data
 rm -rf /var/www/dokuwiki/conf
