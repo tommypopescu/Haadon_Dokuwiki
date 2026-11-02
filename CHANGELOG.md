@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Fix: plugin endpoints that derive `DOKU_INC` from `__DIR__` (e.g. `lib/plugins/mcp/mcp.php`) failed with `Failed opening required '.../inc/init.php'`, because `lib/plugins` is a symlink to `/share/dokuwiki/plugins`. `DOKU_INC` is now defined via `auto_prepend_file` for scripts under `/lib/plugins/`.
+
 ## 1.0.6
 
 - PHP extensions `pdo`, `pdo_sqlite`, `sqlite3` and `curl` added.

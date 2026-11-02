@@ -37,6 +37,12 @@ RUN wget -q https://github.com/dokuwiki/dokuwiki/releases/download/release-${DOK
     && cp -r /var/www/dokuwiki /var/www/dokuwiki.dist \
     && chown -R nobody:nobody /var/www/dokuwiki
 
+# lib/plugins is a symlink to /share/dokuwiki/plugins (see run.sh), so PHP resolves
+# __DIR__ of plugin scripts to the real path and plugins that derive DOKU_INC from it
+# (e.g. mcp.php) cannot find inc/init.php. Define DOKU_INC up front for plugin scripts;
+# nginx.conf loads this file with auto_prepend_file.
+RUN printf '<?php\nif (!defined("DOKU_INC")) define("DOKU_INC", "/var/www/dokuwiki/");\n' > /etc/php83/doku_inc.php
+
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
